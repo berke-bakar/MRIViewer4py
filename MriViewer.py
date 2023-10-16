@@ -1,3 +1,4 @@
+from PySide6 import QtCore
 from PySide6.QtCore import QByteArray
 from PySide6.QtGui import QPixmap, QImage, Qt, qRgb
 from PySide6.QtWidgets import QPushButton, QWidget, QLabel, QGridLayout
@@ -7,6 +8,7 @@ import numpy as np
 class MriViewer(QWidget):
     def __init__(self, img_data=None):
         super().__init__()
+        self._events = {}
         self.current_img_index = 0
         self.current_img_data = img_data
         self.prev_button = QPushButton("Prev", self)
@@ -27,31 +29,22 @@ class MriViewer(QWidget):
         grid_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setLayout(grid_layout)
 
-    def prev_button_handler(self):
-        self.current_img_index -= 1
-        if self.current_img_index < 0:
-            self.current_img_index = 0
-        # if first picture disable prev button
-        if self.current_img_index == 0:
-            self.prev_button.setDisabled(True)
-            self.next_button.setDisabled(False)
+    def add_event_listener(self, name, func):
+        if name not in self._events:
+            self._events[name] = [func]
         else:
-            self.prev_button.setDisabled(False)
-            self.next_button.setDisabled(False)
-        self.refresh_shown_image()
+            self._events[name].append(func)
+
+    def dispatch_event(self, name):
+        functions = self._events.get(name, [])
+        for func in functions:
+            QtCore.QTimer.singleShot(0, func)
+
+    def prev_button_handler(self):
+        self.dispatch_event("prevButtonPressed")
 
     def next_button_handler(self):
-        self.current_img_index += 1
-        if self.current_img_index >= self.current_img_data.shape[2]:
-            self.current_img_index = self.current_img_data.shape[2] - 1
-        # if last picture disable next button
-        if self.current_img_index == (self.current_img_data.shape[2] - 1):
-            self.next_button.setDisabled(True)
-            self.prev_button.setDisabled(False)
-        else:
-            self.next_button.setDisabled(False)
-            self.prev_button.setDisabled(False)
-        self.refresh_shown_image()
+        self.dispatch_event("nextButtonPressed")
 
     def update_image_data(self, new_img_data):
         self.current_img_data = new_img_data
